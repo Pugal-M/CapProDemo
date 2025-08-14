@@ -1,28 +1,30 @@
-from flask import Flask, request, jsonify
-import tensorflow as tf
+
 import numpy as np
+from flask import Flask, request, jsonify
+from tensorflow.keras.models import load_model
+from PIL import Image
 
 app = Flask(__name__)
-model = tf.keras.models.load_model("mnist_model.h5")
+model = load_model("asl_model.keras.h5")
+
+# Map indices to letters/numbers (update if your dataset uses different mapping)
+classes = [chr(i) for i in range(65, 91)] + [str(i) for i in range(0, 10)]
 @app.route("/", methods=["GET"])
 def home():
     return "MNIST Predictor API is live! Use /predict to POST images."
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    try:
-        data = request.get_json()
-        # Convert to numpy array and reshape to match model input
-        image = np.array(data['image']).reshape(1, 28, 28, 1)
-        
-        pred = model.predict(image)
-        result = int(np.argmax(pred))  # predicted digit
+    data = request.get_json()
+    if "image" not in data:
+        return jsonify({"error": "No image data"}), 400
 
-        return jsonify({"prediction": result})
-    
-    except Exception as e:
-        # Return error message to debug 500 errors
-        return jsonify({"error": str(e)}), 500
+    img_array = np.array(data["image"], dtype=np.float32)
+    img_array = np.expand_dims(img_array, axis=-1)  # shape (28,28,1)
+    img_array = np.expand_dims(img_array, axis=0)   # shape (1,28,28,1)
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    predictions = model.predict(img_array)
+    pred_index = np.argmax(predictions)
+    pred_label = classes[pred_index]
+
+    return jsonify({"prediction": pred_label})
