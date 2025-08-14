@@ -1,18 +1,19 @@
-import tensorflow as tf
-import numpy as np
 from flask import Flask, request, jsonify
-import os
+import tensorflow as tf
 
 app = Flask(__name__)
-model = tf.keras.models.load_model("mnist_model.h5")
+model = tf.keras.models.load_model("mnist_model.h5")  # Make sure this file is in the project root
+
+@app.route("/")  # This is the home route
+def home():
+    return "MNIST Model API is running!"
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    data = request.json
-    image = np.array(data["image"]).reshape(1, 28, 28)
-    prediction = model.predict(image)
-    predicted_class = int(np.argmax(prediction))
-    return jsonify({"prediction": predicted_class})
+    data = request.json  # Expecting JSON input
+    # Example: {"image": [0.0, 0.0, ..., 0.0]}  # Flattened 28x28 image
+    prediction = model.predict([data["image"]])
+    return jsonify({"prediction": prediction.tolist()})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=10000)
