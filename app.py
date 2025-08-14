@@ -1,45 +1,39 @@
-import numpy as np
 from flask import Flask, request, jsonify
-from tensorflow.keras.models import load_model
+import tensorflow as tf
+import numpy as np
 from PIL import Image
 import io
-import base64
+import os
 
 app = Flask(__name__)
-model = load_model("asl_model.keras.h5")
 
-# Update this mapping to match your dataset labels
-classes = [chr(i) for i in range(65, 91)] + [str(i) for i in range(0, 10)]
+# Load model
+model = tf.keras.models.load_model("model.h5")
+
+# Class names (update these as per your dataset)
+class_names = ["Cat", "Dog"]
 
 @app.route("/", methods=["GET"])
 def home():
-    return "ASL Predictor API is live! Use POST /predict with an image."
+    return "Image Recognition API is running 🚀"
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    try:
-        # Expecting base64 encoded image
-        data = request.get_json()
-        if "image" not in data:
-            return jsonify({"error": "No image data"}), 400
-
-        # Decode the image from base64
-        image_bytes = base64.b64decode(data["image"])
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img = img.resize((224, 224))  # Resize to match your model input
-
-        # Preprocess for model
-        img_array = np.array(img) / 255.0  # Normalize
-        img_array = np.expand_dims(img_array, axis=0)  # (1, 224, 224, 3)
-
-        predictions = model.predict(img_array)
-        pred_index = np.argmax(predictions)
-        pred_label = classes[pred_index]
-
-        return jsonify({"prediction": pred_label})
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
     
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    file = request.files["file"]
+    img = Image.open(file.stream).convert("RGB")
+    img = img.resize((224, 224))  # Change to your model's input size
+    img_array = np.array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+
+    predictions = model.predict(img_array)
+    predicted_class = class_names[np.argmax(predictions)]
+    confidence = round(100 * np.max(predictions), 2)
+
+    return jsonify({"class": predicted_class, "confidence": confidence})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
