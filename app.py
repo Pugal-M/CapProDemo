@@ -4,6 +4,9 @@ import numpy as np
 
 app = Flask(__name__)
 model = tf.keras.models.load_model("mnist_model.h5")
+@app.route("/", methods=["GET"])
+def home():
+    return "MNIST Predictor API is live! Use /predict to POST images."
 
 @app.route("/predict", methods=["POST"])
 def predict():
